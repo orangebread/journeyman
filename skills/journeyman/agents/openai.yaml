@@ -1,0 +1,4 @@
+interface:
+  display_name: "Journeyman"
+  short_description: "Guide a skill-owned statechart design workflow."
+  default_prompt: "Use Journeyman to turn this rough request into evidence-labeled requirements, a statechart or better artifact, and an accepted design contract."

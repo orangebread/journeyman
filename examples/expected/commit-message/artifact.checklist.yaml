@@ -1,0 +1,20 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+parent_artifact_versions:
+  requirements.refined.yaml: "1"
+artifact_type: checklist
+rationale: A checklist is more appropriate than a statechart because the request is a one-shot content transform with no lifecycle states or transitions.
+items:
+  - id: CHK-001
+    text: Output starts with a valid conventional commit type.
+    requirement_ref: REQ-001
+  - id: CHK-002
+    text: Output preserves the login-and-tests meaning.
+    requirement_ref: REQ-002
+  - id: CHK-003
+    text: Output is concise and contains no invented issue number.
+    requirement_ref: REQ-003
+candidate_output: "fix: update login behavior and tests"

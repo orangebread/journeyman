@@ -1,0 +1,94 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+parent_artifact_versions:
+  requirements.raw.md: sha256:49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+  context.yaml: "1"
+source_summary: A user needs a successful password reset journey from login screen through return to sign in.
+request_type: stateful workflow
+recommended_artifact: statechart
+recommendation_confidence: high
+clarification_budget: 3
+scope_fence:
+  primary_actor: user
+  start_trigger: User selects password reset from the login screen.
+  terminal_outcome: User has changed the password and is ready to sign in.
+  non_goals:
+    - Failed or expired reset links
+    - Rate limiting
+    - Email provider retry behavior
+  external_systems:
+    - email delivery service
+    - password reset token service
+  success_criteria:
+    - User can request a reset link.
+    - User can open the reset link.
+    - User can choose a new password.
+    - User returns to sign in after reset.
+  failure_definition: The happy path fails if the user cannot progress from request to ready-to-sign-in.
+requirements:
+  - id: REQ-001
+    text: User can request a password reset from the login screen.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-001
+  - id: REQ-002
+    text: User enters an email address and receives a reset link.
+    evidence: explicit
+    source_ref: requirements.raw.md:L2
+    confidence: high
+    decision_ref: DEC-002
+  - id: REQ-003
+    text: User opens the reset link and chooses a new password.
+    evidence: explicit
+    source_ref: requirements.raw.md:L2
+    confidence: high
+    decision_ref: DEC-003
+  - id: REQ-004
+    text: The flow returns the user to sign in after password reset.
+    evidence: explicit
+    source_ref: requirements.raw.md:L2
+    confidence: high
+    decision_ref: DEC-003
+  - id: REQ-005
+    text: Account existence must not be revealed for unrecognized email addresses.
+    evidence: explicit
+    source_ref: requirements.raw.md:L3
+    confidence: high
+    decision_ref: DEC-004
+negative_acceptance_criteria:
+  - Do not model account enumeration handling as approved security behavior in the happy path.
+  - Do not include expired-link or invalid-token branches in the happy-path chart.
+unknowns:
+  blocking_now: []
+  safe_to_assume:
+    - The reset link can be represented as delivered for the happy path.
+  design_risk:
+    - Account enumeration response wording is security-sensitive and needs explicit approval before full scenario modeling.
+  implementation_risk:
+    - Token expiry and password policy behavior are not defined.
+  defer_until_code:
+    - Exact UI copy and validation messages.
+normalization_summary: The raw request was separated into journey steps, security-sensitive non-disclosure, and out-of-scope failure cases.
+dependencies_seed:
+  - id: DEP-001
+    name: email delivery service
+    confidence: inferred
+    evidence: requirements.raw.md:L2
+handoffs_seed:
+  - id: HND-001
+    from: authentication system
+    to: user
+    artifact: reset link email
+    confidence: inferred
+glossary_updates:
+  - term: ready-to-sign-in
+    meaning: Terminal state after successful password change, before the next authentication attempt.
+decisions:
+  - DEC-001
+  - DEC-002
+  - DEC-003
+  - DEC-004

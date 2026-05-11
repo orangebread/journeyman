@@ -1,0 +1,61 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+parent_artifact_versions:
+  requirements.raw.md: sha256:49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+  requirements.refined.yaml: "1"
+decisions:
+  - id: DEC-001
+    stage: intake-routing
+    mode: "yes"
+    prompt: Should this request produce a statechart?
+    proposal: Route as a stateful user journey.
+    outcome: accepted
+    rationale: The request contains lifecycle states, screens, external email dependency, and a terminal journey outcome.
+    source_refs:
+      - requirements.raw.md:L1-L4
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: User approval is the default for intake interpretation.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-002
+    stage: requirement-interpretation
+    mode: "yes"
+    prompt: Should email delivery be treated as a dependency seed?
+    proposal: Seed email delivery as inferred, not verified.
+    outcome: accepted
+    rationale: Reset-link delivery implies email infrastructure, but provider behavior is not defined by the source.
+    source_refs:
+      - requirements.raw.md:L2
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Dependency ownership should not be silently decided.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-003
+    stage: happy-path
+    mode: "yes"
+    prompt: Should the happy path stop at ready-to-sign-in?
+    proposal: End the chart when the user can return to sign in.
+    outcome: accepted
+    rationale: The raw source says return to sign in, not complete a subsequent sign-in attempt.
+    source_refs:
+      - requirements.raw.md:L2
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Happy-path boundary requires review.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-004
+    stage: unknown-classification
+    mode: "yes"
+    prompt: Should account enumeration details be modeled now?
+    proposal: Keep account enumeration handling as a security-sensitive design risk for later explicit approval.
+    outcome: accepted
+    rationale: The source states non-disclosure but not the exact response behavior.
+    source_refs:
+      - requirements.raw.md:L3-L4
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Security behavior cannot be handled by auto.
+    created_at: "2026-05-11T00:00:00+00:00"

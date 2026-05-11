@@ -1,0 +1,76 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+parent_artifact_versions:
+  requirements.refined.yaml: "1"
+id: password-reset-happy
+title: Password Reset Happy Path
+actors:
+  - user
+  - authentication system
+  - email delivery service
+states:
+  - id: at_login
+    entry_condition: User is on the login screen and cannot remember the password.
+  - id: reset_requested
+    entry_condition: User has chosen the password reset path.
+  - id: email_submitted
+    entry_condition: User has submitted an email address.
+  - id: reset_link_delivered
+    entry_condition: The reset link is available to the user.
+  - id: reset_link_opened
+    entry_condition: User has opened the reset link.
+  - id: password_changed
+    entry_condition: User has chosen and submitted a new password.
+  - id: ready_to_sign_in
+    entry_condition: Password reset is complete and user can return to sign in.
+initial: at_login
+transitions:
+  - id: T-001
+    from: at_login
+    to: reset_requested
+    trigger: User selects forgot-password from the login screen.
+    expected_result: Password reset request form is shown.
+    actor: user
+  - id: T-002
+    from: reset_requested
+    to: email_submitted
+    trigger: User enters email address and submits the form.
+    expected_result: Authentication system accepts the request without revealing account existence.
+    actor: user
+  - id: T-003
+    from: email_submitted
+    to: reset_link_delivered
+    trigger: Authentication system sends reset-link message.
+    expected_result: User receives reset-link access for the happy path.
+    actor: authentication system
+  - id: T-004
+    from: reset_link_delivered
+    to: reset_link_opened
+    trigger: User opens the reset link.
+    expected_result: Password reset form is available.
+    actor: user
+  - id: T-005
+    from: reset_link_opened
+    to: password_changed
+    trigger: User submits a new password.
+    expected_result: Authentication system updates the password.
+    actor: user
+  - id: T-006
+    from: password_changed
+    to: ready_to_sign_in
+    trigger: Password change succeeds.
+    expected_result: User is directed back to sign in.
+    actor: authentication system
+terminal_states:
+  - ready_to_sign_in
+metadata:
+  source_requirements:
+    - REQ-001
+    - REQ-002
+    - REQ-003
+    - REQ-004
+  omitted_by_design:
+    - REQ-005

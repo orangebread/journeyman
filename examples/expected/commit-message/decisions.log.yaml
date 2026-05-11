@@ -1,0 +1,48 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+parent_artifact_versions:
+  requirements.raw.md: sha256:ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+  requirements.refined.yaml: "1"
+decisions:
+  - id: DEC-001
+    stage: intake-routing
+    mode: "yes"
+    prompt: Should this request produce a statechart?
+    proposal: Decline statechart and route to checklist.
+    outcome: accepted
+    rationale: The request is a stateless content transform with no lifecycle or branching behavior.
+    source_refs:
+      - requirements.raw.md:L1-L5
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Routing should be inspectable.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-002
+    stage: artifact-selection
+    mode: "yes"
+    prompt: Which alternative artifact is best?
+    proposal: Use a checklist to verify the rewritten commit message.
+    outcome: accepted
+    rationale: A checklist captures format and no-invention constraints without forcing a behavior model.
+    source_refs:
+      - requirements.raw.md:L1-L5
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Alternative artifact selection is a user-visible design decision.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-003
+    stage: normalization
+    mode: "yes"
+    prompt: Can fix be inferred as the conventional commit type?
+    proposal: Use fix as an inferred but reviewable type.
+    outcome: accepted
+    rationale: The raw text begins with fixed and references login/tests.
+    source_refs:
+      - requirements.raw.md:L3
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Commit wording is user-visible output.
+    created_at: "2026-05-11T00:00:00+00:00"

@@ -1,0 +1,64 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+parent_artifact_versions:
+  requirements.raw.md: sha256:ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+  context.yaml: "1"
+source_summary: A developer wants one concise conventional-commit rewrite for an existing commit message.
+request_type: simple content or task transform
+recommended_artifact: checklist
+recommendation_confidence: high
+clarification_budget: 3
+scope_fence:
+  primary_actor: developer
+  start_trigger: Developer provides a raw commit message.
+  terminal_outcome: Developer receives a concise conventional-commit rewrite.
+  non_goals:
+    - Modeling lifecycle states
+    - Looking up issue numbers
+  external_systems:
+    - none declared
+  success_criteria:
+    - Output uses conventional commit format.
+    - Output is concise.
+    - Output does not invent issue numbers.
+  failure_definition: The output fails if it adds unsupported details or produces a statechart.
+requirements:
+  - id: REQ-001
+    text: Rewrite the provided commit message into conventional commit format.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-001
+  - id: REQ-002
+    text: Preserve the meaning of fixed login thing and tests.
+    evidence: explicit
+    source_ref: requirements.raw.md:L3
+    confidence: high
+    decision_ref: DEC-002
+  - id: REQ-003
+    text: Keep the rewritten message concise and avoid invented issue numbers.
+    evidence: explicit
+    source_ref: requirements.raw.md:L5
+    confidence: high
+    decision_ref: DEC-003
+negative_acceptance_criteria:
+  - Do not produce a statechart.
+  - Do not invent issue IDs, scopes, or implementation details not present in the raw source.
+unknowns:
+  blocking_now: []
+  safe_to_assume:
+    - fix is the likely conventional commit type.
+  design_risk: []
+  implementation_risk: []
+  defer_until_code: []
+normalization_summary: The request was classified as a one-shot content transform with checklist acceptance criteria.
+dependencies_seed: []
+handoffs_seed: []
+glossary_updates: []
+decisions:
+  - DEC-001
+  - DEC-002
+  - DEC-003

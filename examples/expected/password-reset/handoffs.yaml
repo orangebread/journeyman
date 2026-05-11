@@ -1,0 +1,38 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 49e075de98600bf843f9f3d696781b676512250d701542bf56cbe532224f31ee
+parent_artifact_versions:
+  scenarios.yaml: "1"
+  statechart.full.yaml: "1"
+actors:
+  - user
+  - authentication system
+systems:
+  - login screen
+  - email delivery service
+  - password reset token service
+dependencies:
+  - id: DEP-001
+    name: email delivery service
+    owner: auth platform team
+    failure_path: T-009
+    accepted_risk: Detailed retry guarantees are deferred until the email provider contract is known.
+handoffs:
+  - id: HND-001
+    actor: authentication system
+    owner: auth platform team
+    dependency: DEP-001
+    input_artifact: reset request event
+    output_artifact: reset link email
+    precondition: User submitted an email address for password reset.
+    postcondition: Reset-link delivery is attempted without revealing account existence.
+    timeout: provider-specific and unresolved
+    failure_transition: T-009
+    scenario_refs:
+      - SCN-003
+accepted_risks:
+  - id: RISK-001
+    text: Email retry guarantees are not specified in the raw request and need provider validation before implementation.
+    owner: auth platform team

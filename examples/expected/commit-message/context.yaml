@@ -1,0 +1,22 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+parent_artifact_versions:
+  requirements.raw.md: sha256:ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
+project_summary: Commit message rewrite escape-hatch fixture.
+codebase_pointers: []
+related_artifacts: []
+known_systems: []
+known_actors:
+  - developer
+glossary:
+  - term: conventional commit
+    meaning: A commit message format with a type, optional scope, and concise summary.
+constraints:
+  - Keep the message concise.
+  - Do not invent issue numbers.
+out_of_scope:
+  - Statechart generation
+  - Issue lookup
