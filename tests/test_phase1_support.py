@@ -41,6 +41,23 @@ def test_password_reset_fixture_validates_and_renders_dashboard(tmp_path: Path) 
     assert "HND-001" in html
     assert "review-filter" in html
     assert "EVT-001" in html
+    assert "statechart-diagram" in html
+    assert "<svg" in html
+    assert "pollDesignChanges" in html
+
+
+def test_background_export_fixture_validates_async_dependency_expansion(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "background-export")
+
+    assert validate_design(design_dir).ok
+    assert validate_hashes(design_dir).ok
+
+    html = render_dashboard_html(design_dir)
+    assert "Background Export Full Review Chart" in html
+    assert "HND-STORAGE" in html
+    assert "SCN-004" in html
+    assert "EVT-003" in html
+    assert "statechart-diagram" in html
 
 
 def test_commit_message_fixture_validates_escape_hatch(tmp_path: Path) -> None:
@@ -75,6 +92,25 @@ def test_validator_rejects_requirement_without_evidence(tmp_path: Path) -> None:
 
     assert not result.ok
     assert any("invalid evidence" in error for error in result.errors)
+
+
+def test_validator_rejects_requirement_without_required_fields(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    refined_path = design_dir / "requirements.refined.yaml"
+    refined = load_yaml(refined_path)
+    del refined["requirements"][0]["id"]
+    del refined["requirements"][0]["text"]
+    del refined["requirements"][0]["confidence"]
+    del refined["requirements"][0]["decision_ref"]
+    write_yaml(refined_path, refined)
+
+    result = validate_design(design_dir)
+
+    assert not result.ok
+    assert any("missing id" in error for error in result.errors)
+    assert any("missing text" in error for error in result.errors)
+    assert any("missing confidence" in error for error in result.errors)
+    assert any("missing decision_ref" in error for error in result.errors)
 
 
 def test_validator_rejects_incomplete_scope_fence_without_partial_status(tmp_path: Path) -> None:
@@ -157,6 +193,35 @@ def test_validator_rejects_stale_parent_artifact_version(tmp_path: Path) -> None
 
     assert not result.ok
     assert any("declares '0', expected '1'" in error for error in result.errors)
+
+
+def test_validator_rejects_missing_required_parent_artifact_version(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    chart_path = design_dir / "statechart.happy.yaml"
+    chart = load_yaml(chart_path)
+    chart["parent_artifact_versions"] = {}
+    write_yaml(chart_path, chart)
+
+    result = validate_design(design_dir)
+
+    assert not result.ok
+    assert any("missing required parent artifact 'requirements.refined.yaml'" in error for error in result.errors)
+
+
+def test_validator_requires_phase_two_expansion_artifacts(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    (design_dir / "scenarios.yaml").unlink()
+    (design_dir / "statechart.full.yaml").unlink()
+    (design_dir / "handoffs.yaml").unlink()
+    review_path = design_dir / "review.status.yaml"
+    review = load_yaml(review_path)
+    review["parent_artifact_versions"] = {"statechart.happy.yaml": "1"}
+    write_yaml(review_path, review)
+
+    result = validate_design(design_dir)
+
+    assert not result.ok
+    assert any("phase 2 statechart review requires scenarios.yaml" in error for error in result.errors)
 
 
 def test_hash_check_rejects_changed_raw_source(tmp_path: Path) -> None:
@@ -242,6 +307,33 @@ def test_validator_rejects_dependency_without_failure_path_or_risk(tmp_path: Pat
     assert any("missing failure_path or accepted_risk" in error for error in result.errors)
 
 
+def test_validator_rejects_handoff_not_linked_from_full_chart(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    chart_path = design_dir / "statechart.full.yaml"
+    chart = load_yaml(chart_path)
+    for transition in chart["transitions"]:
+        transition.pop("handoff_ref", None)
+    write_yaml(chart_path, chart)
+
+    result = validate_design(design_dir)
+
+    assert not result.ok
+    assert any("is not attached to any statechart transition" in error for error in result.errors)
+
+
+def test_validator_rejects_unknown_handoff_failure_transition(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    handoffs_path = design_dir / "handoffs.yaml"
+    handoffs = load_yaml(handoffs_path)
+    handoffs["handoffs"][0]["failure_transition"] = "T-MISSING"
+    write_yaml(handoffs_path, handoffs)
+
+    result = validate_design(design_dir)
+
+    assert not result.ok
+    assert any("references unknown failure_transition" in error for error in result.errors)
+
+
 def test_validator_rejects_ownerless_handoff(tmp_path: Path) -> None:
     design_dir = copy_fixture(tmp_path, "password-reset")
     handoffs_path = design_dir / "handoffs.yaml"
@@ -268,3 +360,22 @@ def test_cli_validate_returns_zero_for_fixture(tmp_path: Path) -> None:
     design_dir = copy_fixture(tmp_path, "commit-message")
 
     assert main(["validate", str(design_dir)]) == 0
+
+
+def test_cli_dashboard_exports_static_review_bundle(tmp_path: Path) -> None:
+    design_dir = copy_fixture(tmp_path, "password-reset")
+    output = tmp_path / "review" / "index.html"
+
+    assert main(["dashboard", str(design_dir), "--export", str(output)]) == 0
+    html = output.read_text(encoding="utf-8")
+    assert "Journeyman Review" in html
+    assert "statechart-diagram" in html
+
+
+def test_evaluation_artifacts_cover_fixture_metrics() -> None:
+    for name in ["password-reset", "background-export", "commit-message"]:
+        evaluation = load_yaml(ROOT / "examples" / "evaluations" / f"{name}.yaml")
+
+        assert evaluation["result"] == "passes"
+        assert evaluation["metrics"]["raw_source_preserved"] is True
+        assert evaluation["metrics"]["requirement_evidence_coverage"]

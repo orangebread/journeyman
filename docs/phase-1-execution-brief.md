@@ -84,13 +84,13 @@ The validator must fail when:
 
 - `requirements.raw.md` is missing or its hash no longer matches downstream source references.
 - `normalization.diff.yaml` is missing.
-- a requirement lacks `evidence` or `source_ref`.
+- a requirement lacks `id`, `text`, `evidence`, `source_ref`, `confidence`, or `decision_ref`.
 - `scope_fence` is incomplete and the design is not marked partial.
 - `blocking_now` unknowns remain in an accepted design.
 - `auto` is used for a banned sensitive category.
 - a statechart-worthy request has unreachable states.
 - a non-statechart request lacks a recommended alternative artifact and rationale.
-- downstream artifacts reference stale parent artifact versions.
+- downstream artifacts reference stale parent artifact versions or omit required parent references.
 
 ## First Implementation Order
 

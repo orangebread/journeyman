@@ -1,0 +1,16 @@
+schema_version: 1
+case_id: commit-message
+source_request: examples/requests/commit-message.md
+expected_artifacts: examples/expected/commit-message
+evaluation_date: "2026-05-11"
+baseline: forced statechart routing
+metrics:
+  raw_source_preserved: true
+  requirement_evidence_coverage: 3/3
+  statechart_declined: true
+  alternative_artifact_rationale_present: true
+  dependency_handoffs_cross_linked: not_applicable
+  dashboard_diagram_present: not_applicable
+result: passes
+reviewer_notes:
+  - Proves the escape hatch declines low-value statecharts and produces a checklist artifact with rationale.

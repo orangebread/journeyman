@@ -1,0 +1,87 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+parent_artifact_versions:
+  requirements.raw.md: sha256:10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+  requirements.refined.yaml: "1"
+decisions:
+  - id: DEC-001
+    stage: intake-routing
+    mode: "yes"
+    prompt: Should this request produce a statechart?
+    proposal: Route as a stateful async workflow.
+    outcome: accepted
+    rationale: The request has lifecycle states, background processing, dependency handoffs, and terminal outcomes.
+    source_refs:
+      - requirements.raw.md:L1-L5
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Routing interpretation is a review checkpoint.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-002
+    stage: dependency-modeling
+    mode: "yes"
+    prompt: Should queue availability be modeled as a high-priority dependency?
+    proposal: Model queue unavailable as an explicit failure transition.
+    outcome: accepted
+    rationale: The raw source names queue unavailability as a failure case.
+    source_refs:
+      - requirements.raw.md:L3
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: External dependency ownership should be explicit.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-003
+    stage: happy-path
+    mode: "yes"
+    prompt: Should generation run after queue acceptance?
+    proposal: Model generation as a worker-owned background state.
+    outcome: accepted
+    rationale: The raw source says CSV generation happens in the background after queuing.
+    source_refs:
+      - requirements.raw.md:L1
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Actor boundary should be reviewed.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-004
+    stage: dependency-modeling
+    mode: "yes"
+    prompt: Should storage be modeled as a handoff?
+    proposal: Treat generated CSV storage as a dependency handoff.
+    outcome: accepted
+    rationale: The raw source names stored file availability before notification and download.
+    source_refs:
+      - requirements.raw.md:L1-L3
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: Storage ownership is an external-system decision.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-005
+    stage: dependency-modeling
+    mode: "yes"
+    prompt: Should notification failure preserve download availability?
+    proposal: Model notification failure as recoverable after file storage.
+    outcome: accepted
+    rationale: Notification happens after file storage, so download can still be exposed through the report page.
+    source_refs:
+      - requirements.raw.md:L1-L3
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: User-visible failure behavior needs review.
+    created_at: "2026-05-11T00:00:00+00:00"
+  - id: DEC-006
+    stage: scenario-expansion
+    mode: "yes"
+    prompt: Which failures are high priority?
+    proposal: Expand queue unavailable, generation failure, storage failure, and notification failure.
+    outcome: accepted
+    rationale: The raw source explicitly requests those dependency failures.
+    source_refs:
+      - requirements.raw.md:L3-L5
+    reversible: true
+    auto_allowed: false
+    blocked_auto_reason: High-priority scenario scope is a review checkpoint.
+    created_at: "2026-05-11T00:00:00+00:00"

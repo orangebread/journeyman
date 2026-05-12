@@ -27,7 +27,7 @@ Agent and implementation rules live in:
 
 ## Current Build Target
 
-Build Phase 1 only:
+Build the skill-owned workflow with deterministic CLI support:
 
 - skill-owned intake from raw prompt, file, stdin, or chat export
 - immutable `requirements.raw.md`
@@ -40,9 +40,10 @@ Build Phase 1 only:
 - `scenarios.yaml`, `statechart.full.yaml`, and `handoffs.yaml` for expanded statechart reviews
 - CLI support for scaffolding, hashes, validation, artifact inspection, and the read-only local dashboard
 
-Phase 1 must prove both:
+Current proof fixtures cover:
 
 - password reset or login recovery produces a useful happy-path statechart
+- background export produces async dependency, failure-path, and handoff expansion
 - commit-message rewrite is correctly declined as a statechart and routed to a better artifact
 
 ## Non-Goals
@@ -58,8 +59,9 @@ journeyman init designs/password-reset
 journeyman hash examples/expected/password-reset
 journeyman validate examples/expected/password-reset
 journeyman dashboard examples/expected/password-reset
+journeyman dashboard examples/expected/password-reset --export tmp/review.html
 ```
 
 The repo-local skill owns design interpretation and artifact authorship. The CLI must not infer requirements, choose state names, or generate design meaning in Phase 1.
 
-The dashboard is read-only. It can display happy and full charts, scenario coverage, handoffs, actor lanes, event passes, and client-side filtering across the current artifact set.
+The dashboard is read-only. It can display SVG statechart diagrams, happy and full charts, scenario coverage, handoffs, actor lanes, event passes, validation results, client-side filtering, browser polling for changed artifacts, and a static HTML review export.

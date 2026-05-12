@@ -1,0 +1,30 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+parent_artifact_versions:
+  requirements.raw.md: sha256:10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+project_summary: Background report export design fixture with async job and dependency failures.
+codebase_pointers: []
+related_artifacts: []
+known_systems:
+  - report page
+  - export job queue
+  - export worker
+  - object storage
+  - notification service
+known_actors:
+  - user
+  - application
+  - export worker
+glossary:
+  - term: export job
+    meaning: Background task that generates and stores a CSV file for later download.
+constraints:
+  - The export runs asynchronously after the user requests it.
+  - Dependency failures need visible review paths.
+out_of_scope:
+  - Export format customization
+  - Long-term retention policy
+  - Entitlement or billing rules

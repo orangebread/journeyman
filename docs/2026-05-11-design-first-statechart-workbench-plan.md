@@ -345,6 +345,8 @@ All artifacts should include:
 
 When requirements change mid-design, downstream artifacts become stale unless their `parent_artifact_versions` match the current upstream artifact versions.
 
+`review.status.yaml` also records `phase`. Accepted designs must declare the phase being accepted. Phase 2+ statechart reviews require `scenarios.yaml`, `statechart.full.yaml`, and `handoffs.yaml` plus matching parent artifact references.
+
 ### `context.yaml`
 
 Required sections:
@@ -481,7 +483,7 @@ Required sections:
 Phase 3 dashboard capabilities:
 
 - Local server.
-- Watches artifact files.
+- Reloads when artifact files change.
 - Renders statechart diagrams.
 - Shows happy vs full chart diff.
 - Shows decisions beside generated artifacts.
@@ -518,7 +520,7 @@ Minimum deterministic checks:
 - `requirements.raw.md` exists and has a stable source hash.
 - `requirements.refined.yaml` has source-backed requirements, a request-type routing result, and a complete scope fence or explicit partial status.
 - `normalization.diff.yaml` exists and references the current raw source hash.
-- Every requirement has an evidence label and source reference.
+- Every requirement has id, text, evidence label, source reference, confidence, and decision reference.
 - No accepted design has unresolved `blocking_now` unknowns.
 - `auto` is not used for security, privacy, billing, destructive action, data retention, external ownership, user-visible commitment, legal, compliance, or regulatory decisions.
 - Every `auto` decision is reversible and logged.
@@ -527,7 +529,10 @@ Minimum deterministic checks:
 - Every high-priority scenario maps to a state or transition.
 - Every dependency has a failure path or accepted risk.
 - Every handoff has owner, input artifact, output artifact, and failure transition or accepted risk.
+- Every handoff dependency, failure path, and failure transition cross-references the full chart.
+- Every full-chart `handoff_ref` points to a known handoff, and every handoff is attached to at least one transition.
 - Every artifact version matches its declared parent artifact versions.
+- Every artifact includes its required parent references.
 - Non-statechart requests produce a recommended alternative artifact with a rationale.
 
 ## Evaluation Plan
@@ -602,7 +607,7 @@ Exit criteria:
 
 Goal: add the behavior that makes the design useful for implementation readiness.
 
-Implementation status: supported by `scenarios.yaml`, `statechart.full.yaml`, `handoffs.yaml`, deterministic validation, and the password-reset proof fixture.
+Implementation status: supported by `scenarios.yaml`, `statechart.full.yaml`, `handoffs.yaml`, deterministic validation, the password-reset proof fixture, the background-export async dependency fixture, and committed evaluation artifacts.
 
 Tasks:
 
@@ -622,7 +627,7 @@ Exit criteria:
 
 Goal: make the artifacts inspectable without reading YAML.
 
-Implementation status: supported by the local read-only dashboard viewer for raw source, routing, requirements, happy/full charts, scenario coverage, handoffs, actor lanes, event passes, and validation results.
+Implementation status: supported by the local read-only dashboard viewer for raw source, routing, requirements, SVG happy/full chart diagrams, happy-to-full diff, scenario coverage, handoffs, actor lanes, event passes, validation results, browser polling for changed artifacts, and static HTML export.
 
 Tasks:
 
@@ -721,7 +726,7 @@ Iteration support should be built into the artifact model from the start:
 
 ## Open Decisions
 
-1. Whether Phase 1 should add static export in addition to the local dashboard viewer.
+1. Whether the static review export should remain a single HTML file or become a multi-file bundle with extracted assets.
 2. Whether `context.yaml` should be hand-authored, generated from repo inspection, or both.
 3. How chat-export intake should preserve source references.
 4. Whether glossary updates require explicit approval or can be `auto` when reversible.

@@ -1,0 +1,67 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+parent_artifact_versions:
+  requirements.refined.yaml: "1"
+  statechart.happy.yaml: "1"
+happy_path:
+  id: SCN-HAPPY-001
+  states:
+    - report_open
+    - export_requested
+    - job_queued
+    - export_generating
+    - file_stored
+    - user_notified
+    - file_downloaded
+  transitions:
+    - T-001
+    - T-002
+    - T-003
+    - T-004
+    - T-005
+    - T-006
+high_priority:
+  - id: SCN-001
+    title: Queue unavailable
+    priority: high
+    reason: The raw source names queue unavailability as a dependency failure.
+    affected_states:
+      - export_requested
+      - queue_unavailable
+    affected_transitions:
+      - T-007
+  - id: SCN-002
+    title: Generation fails
+    priority: high
+    reason: The raw source names generation failure.
+    affected_states:
+      - export_generating
+      - export_failed
+    affected_transitions:
+      - T-008
+  - id: SCN-003
+    title: Storage unavailable
+    priority: high
+    reason: The raw source names storage unavailability.
+    affected_states:
+      - export_generating
+      - storage_failed
+    affected_transitions:
+      - T-009
+  - id: SCN-004
+    title: Notification delivery fails
+    priority: high
+    reason: The raw source names notification delivery failure.
+    affected_states:
+      - file_stored
+      - notification_failed
+    affected_transitions:
+      - T-010
+deferred:
+  - id: SCN-DEFER-001
+    title: Retention expiry
+    rationale: Retention behavior is out of scope and should not be invented from the source.
+rejected: []

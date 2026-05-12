@@ -6,6 +6,7 @@ source_hash: ea9197fad236353d2fe5b83db71febbccf3d6ac380d911c66457b72ffef7d784
 parent_artifact_versions:
   artifact.checklist.yaml: "1"
 status: accepted
+phase: 1
 accepted_at: "2026-05-11T00:00:00+00:00"
 reviewer: fixture
 notes:

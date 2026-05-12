@@ -45,14 +45,17 @@ Read `references/artifact-contract.md` when creating or reviewing artifacts.
    - For statechart-worthy designs that have passed happy-path review, write `scenarios.yaml`, `statechart.full.yaml`, and `handoffs.yaml`.
    - Add only high-priority scenarios. Map each high-priority scenario to at least one state or transition.
    - Keep owner, input artifact, output artifact, dependency, and failure path explicit for every handoff.
+   - Ensure every handoff id is referenced by at least one full-chart transition `handoff_ref`.
 
 6. **Validation And Review**
    - Run `journeyman validate <design-dir>` before claiming a design is ready for review.
    - Run `journeyman dashboard <design-dir>` to launch the read-only local viewer.
-   - A design can be accepted only when validation passes and `review.status.yaml` records the accepted or revision-required state.
+   - Use `journeyman dashboard <design-dir> --export <path>` when a static read-only review HTML file is needed.
+   - A design can be accepted only when validation passes and `review.status.yaml` records the accepted or revision-required state and design phase.
 
 ## Phase 1 Proof Cases
 
 - Password reset or login recovery must prove the statechart path.
+- Background export or report generation must prove async dependency and handoff expansion.
 - Commit-message rewrite must prove the escape hatch by declining statechart output and producing a better artifact.
 - Treat task success, artifact generated, artifact validated, evaluation evidence, and repo integration as separate claims.

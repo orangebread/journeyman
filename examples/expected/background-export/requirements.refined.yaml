@@ -1,0 +1,123 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+parent_artifact_versions:
+  requirements.raw.md: sha256:10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+  context.yaml: "1"
+source_summary: A user requests an async CSV export from a report page and later downloads the generated file.
+request_type: stateful workflow
+recommended_artifact: statechart
+recommendation_confidence: high
+clarification_budget: 3
+scope_fence:
+  primary_actor: user
+  start_trigger: User requests an export from a report page.
+  terminal_outcome: User downloads the generated CSV file.
+  non_goals:
+    - Export format customization
+    - Data retention policy
+    - Billing or entitlement behavior
+  external_systems:
+    - export job queue
+    - object storage
+    - notification service
+  success_criteria:
+    - The export request is queued.
+    - The background worker generates a CSV.
+    - The file is stored for download.
+    - The user is notified when ready.
+    - The user can download the file.
+  failure_definition: The flow fails if the export cannot move from request to stored file or reviewable retry path.
+requirements:
+  - id: REQ-001
+    text: User can request an export from a report page.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-001
+  - id: REQ-002
+    text: The system queues the export job for background processing.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-002
+  - id: REQ-003
+    text: A background worker generates a CSV file.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-003
+  - id: REQ-004
+    text: The generated CSV is stored for later download.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-004
+  - id: REQ-005
+    text: The user is notified when the export is ready and can download it.
+    evidence: explicit
+    source_ref: requirements.raw.md:L1
+    confidence: high
+    decision_ref: DEC-005
+  - id: REQ-006
+    text: Queue, generation, storage, and notification failures need reviewable failure paths and retry behavior where appropriate.
+    evidence: explicit
+    source_ref: requirements.raw.md:L3-L5
+    confidence: high
+    decision_ref: DEC-006
+negative_acceptance_criteria:
+  - Do not model export completion as synchronous.
+  - Do not silently drop dependency failures.
+  - Do not decide retention, billing, or entitlement behavior.
+unknowns:
+  blocking_now: []
+  safe_to_assume:
+    - The CSV contents are valid when the worker reaches the generated state.
+  design_risk:
+    - Notification failure may still allow download if the file is stored.
+  implementation_risk:
+    - Queue retry and worker retry policies are not specified.
+  defer_until_code:
+    - Exact progress UI copy and polling behavior.
+normalization_summary: The async export was separated into request, queue, generation, storage, notification, download, and dependency failure paths.
+dependencies_seed:
+  - id: DEP-QUEUE
+    name: export job queue
+    confidence: explicit
+    evidence: requirements.raw.md:L1-L3
+  - id: DEP-STORAGE
+    name: object storage
+    confidence: explicit
+    evidence: requirements.raw.md:L1-L3
+  - id: DEP-NOTIFY
+    name: notification service
+    confidence: explicit
+    evidence: requirements.raw.md:L1-L3
+handoffs_seed:
+  - id: HND-QUEUE
+    from: application
+    to: export job queue
+    artifact: export job request
+    confidence: explicit
+  - id: HND-STORAGE
+    from: export worker
+    to: object storage
+    artifact: generated CSV
+    confidence: explicit
+  - id: HND-NOTIFY
+    from: application
+    to: notification service
+    artifact: export-ready notification
+    confidence: explicit
+glossary_updates:
+  - term: reviewable failure path
+    meaning: A visible state and transition that lets reviewers inspect what happens when a dependency fails.
+decisions:
+  - DEC-001
+  - DEC-002
+  - DEC-003
+  - DEC-004
+  - DEC-005
+  - DEC-006

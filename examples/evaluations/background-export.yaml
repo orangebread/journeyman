@@ -1,0 +1,16 @@
+schema_version: 1
+case_id: background-export
+source_request: examples/requests/background-export.md
+expected_artifacts: examples/expected/background-export
+evaluation_date: "2026-05-11"
+baseline: chat-only async workflow notes
+metrics:
+  raw_source_preserved: true
+  requirement_evidence_coverage: 6/6
+  statechart_reachable: true
+  high_priority_scenarios_mapped: 4/4
+  dependency_handoffs_cross_linked: 3/3
+  dashboard_diagram_present: true
+result: passes
+reviewer_notes:
+  - Proves async job, dependency failure, and handoff mapping behavior beyond the simple password-reset fixture.

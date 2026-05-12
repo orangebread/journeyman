@@ -33,6 +33,7 @@ coverage/
 
 # Local caches
 .cache/
+tmp/
 
 # Environment and secrets
 .env

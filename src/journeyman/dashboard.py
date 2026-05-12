@@ -154,6 +154,20 @@ def render_dashboard_html(design_dir: Path) -> str:
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }}
     .item {{ border: 1px solid var(--line); border-radius: 6px; padding: 12px; background: #fff; }}
     .transition {{ border-left: 3px solid var(--accent); padding-left: 10px; margin: 10px 0; }}
+    .statechart-diagram {{
+      width: 100%;
+      max-width: 1100px;
+      min-height: 320px;
+      margin: 8px 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+    }}
+    .diagram-node rect {{ fill: #f8fafc; stroke: #0f766e; stroke-width: 1.5; }}
+    .diagram-node text {{ fill: var(--ink); font-size: 12px; }}
+    .diagram-node .lane {{ fill: var(--muted); font-size: 10px; }}
+    .diagram-edge {{ stroke: #64748b; stroke-width: 1.4; fill: none; }}
+    .diagram-edge-label {{ fill: var(--muted); font-size: 10px; }}
     @media (max-width: 820px) {{
       main {{ grid-template-columns: 1fr; }}
       aside {{ border-right: 0; border-bottom: 1px solid var(--line); }}
@@ -216,6 +230,21 @@ def render_dashboard_html(design_dir: Path) -> str:
         target.classList.toggle('hidden', query.length > 0 && !target.textContent.toLowerCase().includes(query));
       }}
     }});
+    let lastDesignSnapshot = null;
+    async function pollDesignChanges() {{
+      try {{
+        const response = await fetch('/api/design', {{ cache: 'no-store' }});
+        const snapshot = await response.text();
+        if (lastDesignSnapshot === null) {{
+          lastDesignSnapshot = snapshot;
+        }} else if (snapshot !== lastDesignSnapshot) {{
+          window.location.reload();
+        }}
+      }} catch (_error) {{
+      }}
+    }}
+    pollDesignChanges();
+    setInterval(pollDesignChanges, 2000);
   </script>
 </body>
 </html>"""
@@ -299,7 +328,107 @@ def _render_statechart(statechart: Dict[str, Any]) -> str:
         for t in transitions
         if isinstance(t, dict)
     )
-    return f"<h3>{html.escape(str(statechart.get('title', 'Happy Path Statechart')))}</h3><ul>{state_items}</ul>{transition_items}"
+    return (
+        f"<h3>{html.escape(str(statechart.get('title', 'Happy Path Statechart')))}</h3>"
+        f"{_render_statechart_diagram(statechart)}"
+        f"<ul>{state_items}</ul>{transition_items}"
+    )
+
+
+def _render_statechart_diagram(statechart: Dict[str, Any]) -> str:
+    states = [state for state in statechart.get("states", []) if isinstance(state, dict) and state.get("id")]
+    transitions = [transition for transition in statechart.get("transitions", []) if isinstance(transition, dict)]
+    if not states:
+        return '<p class="muted">No statechart diagram data found.</p>'
+
+    lanes = []
+    for state in states:
+        lane = str(state.get("lane") or "flow")
+        if lane not in lanes:
+            lanes.append(lane)
+    lane_rows = {lane: index for index, lane in enumerate(lanes)}
+    lane_offsets: Dict[str, int] = {lane: 0 for lane in lanes}
+    positions: Dict[str, tuple[int, int]] = {}
+    node_width = 150
+    node_height = 56
+    x_gap = 64
+    y_gap = 92
+    margin = 48
+
+    for state in states:
+        state_id = str(state["id"])
+        lane = str(state.get("lane") or "flow")
+        x = margin + lane_offsets[lane] * (node_width + x_gap)
+        y = margin + lane_rows[lane] * (node_height + y_gap)
+        positions[state_id] = (x, y)
+        lane_offsets[lane] += 1
+
+    max_columns = max(lane_offsets.values() or [1])
+    width = max(720, margin * 2 + max_columns * node_width + max(0, max_columns - 1) * x_gap)
+    height = max(260, margin * 2 + len(lanes) * node_height + max(0, len(lanes) - 1) * y_gap)
+
+    edge_chunks = []
+    for transition in transitions:
+        source = str(transition.get("from") or "")
+        target = str(transition.get("to") or "")
+        if source not in positions or target not in positions:
+            continue
+        source_x, source_y = positions[source]
+        target_x, target_y = positions[target]
+        start_x = source_x + node_width
+        start_y = source_y + node_height / 2
+        end_x = target_x
+        end_y = target_y + node_height / 2
+        if start_x <= end_x:
+            path = f"M {start_x:.0f} {start_y:.0f} L {end_x:.0f} {end_y:.0f}"
+            label_x = (start_x + end_x) / 2
+            label_y = (start_y + end_y) / 2 - 6
+        else:
+            bend_x = max(source_x, target_x) + node_width + 24
+            path = (
+                f"M {start_x:.0f} {start_y:.0f} "
+                f"L {bend_x:.0f} {start_y:.0f} "
+                f"L {bend_x:.0f} {end_y:.0f} "
+                f"L {end_x:.0f} {end_y:.0f}"
+            )
+            label_x = bend_x + 4
+            label_y = (start_y + end_y) / 2
+        label = html.escape(str(transition.get("id") or transition.get("trigger") or "transition"))
+        edge_chunks.append(
+            f'<path class="diagram-edge" d="{path}" marker-end="url(#arrow)" />'
+            f'<text class="diagram-edge-label" x="{label_x:.0f}" y="{label_y:.0f}">{label}</text>'
+        )
+
+    node_chunks = []
+    for state in states:
+        state_id = str(state["id"])
+        x, y = positions[state_id]
+        lane = str(state.get("lane") or "")
+        node_chunks.append(
+            f'<g class="diagram-node" transform="translate({x},{y})">'
+            f'<rect width="{node_width}" height="{node_height}" rx="6" />'
+            f'<text x="12" y="24">{_svg_text(state_id, 19)}</text>'
+            f'<text class="lane" x="12" y="42">{_svg_text(lane, 22)}</text>'
+            "</g>"
+        )
+
+    lane_chunks = []
+    for lane, row in lane_rows.items():
+        y = margin + row * (node_height + y_gap) - 14
+        lane_chunks.append(f'<text class="diagram-edge-label" x="16" y="{y}">{_svg_text(lane, 38)}</text>')
+
+    return (
+        f'<svg class="statechart-diagram" viewBox="0 0 {width} {height}" role="img" '
+        f'aria-label="{html.escape(str(statechart.get("title", "Statechart diagram")))}">'
+        "<defs><marker id=\"arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"3\" "
+        "orient=\"auto\" markerUnits=\"strokeWidth\"><path d=\"M0,0 L0,6 L9,3 z\" fill=\"#64748b\" /></marker></defs>"
+        f"{''.join(lane_chunks)}{''.join(edge_chunks)}{''.join(node_chunks)}</svg>"
+    )
+
+
+def _svg_text(value: str, max_length: int) -> str:
+    text = value if len(value) <= max_length else value[: max_length - 1] + "..."
+    return html.escape(text)
 
 
 def _render_full_review(happy: Any, full: Any) -> str:

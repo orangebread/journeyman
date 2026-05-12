@@ -11,6 +11,19 @@ Every YAML artifact includes:
 
 Use `source_hash` as the SHA-256 hash of `requirements.raw.md`. For `parent_artifact_versions`, reference `requirements.raw.md` as `sha256:<hash>` and YAML parents by their current `artifact_version`.
 
+Required parent references:
+
+- `context.yaml`: `requirements.raw.md`
+- `requirements.refined.yaml`: `requirements.raw.md`, `context.yaml`
+- `normalization.diff.yaml`: `requirements.raw.md`
+- `decisions.log.yaml`: `requirements.raw.md`, `requirements.refined.yaml`
+- `statechart.happy.yaml`: `requirements.refined.yaml`
+- `artifact.*.yaml`: `requirements.refined.yaml`
+- `scenarios.yaml`: `requirements.refined.yaml`, `statechart.happy.yaml`
+- `statechart.full.yaml`: `requirements.refined.yaml`, `statechart.happy.yaml`, `scenarios.yaml`
+- `handoffs.yaml`: `scenarios.yaml`, `statechart.full.yaml`
+- `review.status.yaml`: the selected output artifact; phase 2+ statechart reviews also reference `scenarios.yaml`, `statechart.full.yaml`, and `handoffs.yaml`
+
 ## Required Phase 1 Files
 
 - `requirements.raw.md`
@@ -69,6 +82,14 @@ For actor-lane and event-passing review, states may include `lane`, transitions 
 Required sections: `actors`, `systems`, `dependencies`, `handoffs`, and `accepted_risks`.
 
 Every dependency includes `failure_path` or `accepted_risk`. Every handoff includes `owner`, `input_artifact`, `output_artifact`, and either `failure_transition` or `accepted_risk`.
+
+Every handoff `dependency` must reference a dependency id. Every `failure_path` and `failure_transition` must reference a full-chart transition. Every handoff id must be attached to at least one full-chart transition through `handoff_ref`.
+
+## `review.status.yaml`
+
+Required sections: `status`, `phase`, `accepted_at`, `reviewer`, and `notes`.
+
+Accepted designs must declare `phase`. Use phase `1` for accepted happy-path or alternative-artifact proof. Use phase `2` or greater when scenario expansion, full chart, and handoff artifacts are part of the accepted review.
 
 ## Alternative Artifacts
 

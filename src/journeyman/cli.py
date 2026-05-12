@@ -15,7 +15,7 @@ from .artifacts import (
     REVIEW_FILE,
     dump_yaml,
 )
-from .dashboard import run_dashboard
+from .dashboard import render_dashboard_html, run_dashboard
 from .validator import validate_design, validate_hashes
 
 
@@ -39,6 +39,7 @@ def main(argv: Any = None) -> int:
     dashboard_parser.add_argument("design_dir", type=Path)
     dashboard_parser.add_argument("--host", default="127.0.0.1")
     dashboard_parser.add_argument("--port", type=int, default=8765)
+    dashboard_parser.add_argument("--export", type=Path, help="Write a static read-only review HTML bundle.")
 
     args = parser.parse_args(argv)
     if args.command == "init":
@@ -50,6 +51,11 @@ def main(argv: Any = None) -> int:
     if args.command == "validate":
         return _print_result(validate_design(args.design_dir))
     if args.command == "dashboard":
+        if args.export:
+            args.export.parent.mkdir(parents=True, exist_ok=True)
+            args.export.write_text(render_dashboard_html(args.design_dir), encoding="utf-8")
+            print(f"Exported Journeyman dashboard: {args.export}")
+            return 0
         run_dashboard(args.design_dir, args.host, args.port)
         return 0
     parser.error(f"unknown command {args.command}")
@@ -188,9 +194,14 @@ def _review_template() -> Dict[str, Any]:
     data.update(
         {
             "status": "partial",
+            "phase": 1,
             "accepted_at": None,
             "reviewer": None,
             "notes": [],
         }
     )
     return data
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

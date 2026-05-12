@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Set
 
 from .artifacts import (
+    CONTEXT_FILE,
     DECISIONS_FILE,
     FULL_STATECHART_FILE,
     HANDOFFS_FILE,
     NORMALIZATION_FILE,
+    RAW_FILE,
     REFINED_FILE,
     REVIEW_FILE,
     SCENARIOS_FILE,
@@ -20,6 +22,7 @@ from .artifacts import (
     is_present,
     load_yaml,
     missing_required_files,
+    selected_output_artifacts,
     source_hash,
     yaml_artifact_paths,
 )
@@ -65,6 +68,14 @@ DECISION_FIELDS = [
     "blocked_auto_reason",
     "created_at",
 ]
+REQUIREMENT_FIELDS = [
+    "id",
+    "text",
+    "evidence",
+    "source_ref",
+    "confidence",
+    "decision_ref",
+]
 COMMON_METADATA_FIELDS = [
     "schema_version",
     "artifact_version",
@@ -73,6 +84,16 @@ COMMON_METADATA_FIELDS = [
     "source_hash",
     "parent_artifact_versions",
 ]
+REQUIRED_PARENT_ARTIFACTS = {
+    CONTEXT_FILE: [RAW_FILE],
+    REFINED_FILE: [RAW_FILE, CONTEXT_FILE],
+    NORMALIZATION_FILE: [RAW_FILE],
+    DECISIONS_FILE: [RAW_FILE, REFINED_FILE],
+    STATECHART_FILE: [REFINED_FILE],
+    SCENARIOS_FILE: [REFINED_FILE, STATECHART_FILE],
+    FULL_STATECHART_FILE: [REFINED_FILE, STATECHART_FILE, SCENARIOS_FILE],
+    HANDOFFS_FILE: [SCENARIOS_FILE, FULL_STATECHART_FILE],
+}
 
 
 @dataclass
@@ -120,12 +141,14 @@ def validate_design(design_dir: Path) -> ValidationResult:
     normalization = yaml_docs.get(NORMALIZATION_FILE, {})
     decisions = yaml_docs.get(DECISIONS_FILE, {})
     review = yaml_docs.get(REVIEW_FILE, {})
+    phase = _validate_review_status(review, errors)
 
     _validate_normalization(normalization, raw_hash, errors)
     _validate_requirements(refined, review, errors)
     _validate_decisions(decisions, errors)
-    _validate_parent_versions(design_dir, yaml_docs, raw_hash, errors)
+    _validate_parent_versions(design_dir, yaml_docs, raw_hash, phase, errors)
     _validate_selected_artifact(design_dir, refined, yaml_docs, errors)
+    _validate_phase_requirements(design_dir, refined, phase, errors)
 
     statechart_path = design_dir / STATECHART_FILE
     if statechart_path.exists():
@@ -137,7 +160,8 @@ def validate_design(design_dir: Path) -> ValidationResult:
         chart = yaml_docs.get(FULL_STATECHART_FILE) or yaml_docs.get(STATECHART_FILE) or {}
         _validate_scenarios(yaml_docs.get(SCENARIOS_FILE, {}), chart, errors)
     if HANDOFFS_FILE in yaml_docs:
-        _validate_handoffs(yaml_docs.get(HANDOFFS_FILE, {}), errors)
+        chart = yaml_docs.get(FULL_STATECHART_FILE) or yaml_docs.get(STATECHART_FILE) or {}
+        _validate_handoffs(yaml_docs.get(HANDOFFS_FILE, {}), chart, errors)
 
     return ValidationResult(errors, warnings)
 
@@ -150,12 +174,14 @@ def validate_hashes(design_dir: Path) -> ValidationResult:
     except ArtifactError as exc:
         return ValidationResult([str(exc)], warnings)
 
+    yaml_docs: Dict[str, Dict[str, Any]] = {}
     for path in yaml_artifact_paths(design_dir):
         try:
             data = load_yaml(path)
         except ArtifactError as exc:
             errors.append(str(exc))
             continue
+        yaml_docs[path.name] = data
         actual = data.get("source_hash")
         if not is_present(actual):
             errors.append(f"{path.name}: source_hash is required")
@@ -173,6 +199,14 @@ def validate_hashes(design_dir: Path) -> ValidationResult:
                 errors.append(
                     f"{path.name}: parent {parent!r} declares {declared!r}, expected {expected!r}"
                 )
+    phase = _validate_review_status(yaml_docs.get(REVIEW_FILE, {}), errors)
+    for name, data in yaml_docs.items():
+        parents = data.get("parent_artifact_versions") or {}
+        if not isinstance(parents, Mapping):
+            continue
+        for parent in _required_parents_for(name, design_dir, phase):
+            if parent not in parents:
+                errors.append(f"{name}: missing required parent artifact {parent!r}")
     return ValidationResult(errors, warnings)
 
 
@@ -211,11 +245,15 @@ def _validate_requirements(refined: Mapping[str, Any], review: Mapping[str, Any]
         if not isinstance(requirement, Mapping):
             errors.append(f"{REFINED_FILE}: requirement {index} must be a mapping")
             continue
+        requirement_id = requirement.get("id", index)
+        for field in REQUIREMENT_FIELDS:
+            if not is_present(requirement.get(field)):
+                errors.append(f"{REFINED_FILE}: requirement {requirement_id!r} missing {field}")
         evidence = requirement.get("evidence")
         if evidence not in EVIDENCE_LABELS:
-            errors.append(f"{REFINED_FILE}: requirement {requirement.get('id', index)!r} has invalid evidence")
+            errors.append(f"{REFINED_FILE}: requirement {requirement_id!r} has invalid evidence")
         if not is_present(requirement.get("source_ref")):
-            errors.append(f"{REFINED_FILE}: requirement {requirement.get('id', index)!r} missing source_ref")
+            errors.append(f"{REFINED_FILE}: requirement {requirement_id!r} missing source_ref")
 
     scope = refined.get("scope_fence") or {}
     if not isinstance(scope, Mapping):
@@ -262,18 +300,65 @@ def _validate_parent_versions(
     design_dir: Path,
     yaml_docs: Mapping[str, Mapping[str, Any]],
     raw_hash: str,
+    phase: int,
     errors: List[str],
 ) -> None:
     for name, data in yaml_docs.items():
         parents = data.get("parent_artifact_versions") or {}
         if not isinstance(parents, Mapping):
             continue
+        for parent in _required_parents_for(name, design_dir, phase):
+            if parent not in parents:
+                errors.append(f"{name}: missing required parent artifact {parent!r}")
         for parent, declared in parents.items():
             expected = expected_parent_version(design_dir, str(parent), raw_hash)
             if expected is None:
                 errors.append(f"{name}: parent artifact {parent!r} is missing")
             elif str(declared) != expected:
                 errors.append(f"{name}: parent {parent!r} declares {declared!r}, expected {expected!r}")
+
+
+def _required_parents_for(name: str, design_dir: Path, phase: int) -> List[str]:
+    if name.startswith("artifact.") and name.endswith(".yaml"):
+        return [REFINED_FILE]
+    if name == REVIEW_FILE:
+        required = [path.name for path in selected_output_artifacts(design_dir)]
+        if phase >= 2 and (design_dir / STATECHART_FILE).exists():
+            required.extend([SCENARIOS_FILE, FULL_STATECHART_FILE, HANDOFFS_FILE])
+        return sorted(set(required))
+    return list(REQUIRED_PARENT_ARTIFACTS.get(name, []))
+
+
+def _validate_review_status(review: Mapping[str, Any], errors: List[str]) -> int:
+    phase_value = review.get("phase")
+    if review.get("status") == "accepted" and not is_present(phase_value):
+        errors.append(f"{REVIEW_FILE}: accepted design must declare phase")
+        return 1
+    if not is_present(phase_value):
+        return 1
+    try:
+        phase = int(str(phase_value))
+    except ValueError:
+        errors.append(f"{REVIEW_FILE}: phase must be an integer")
+        return 1
+    if phase < 1:
+        errors.append(f"{REVIEW_FILE}: phase must be 1 or greater")
+        return 1
+    return phase
+
+
+def _validate_phase_requirements(
+    design_dir: Path,
+    refined: Mapping[str, Any],
+    phase: int,
+    errors: List[str],
+) -> None:
+    recommended = str(refined.get("recommended_artifact") or "").strip()
+    if phase < 2 or recommended != "statechart":
+        return
+    for artifact_name in [SCENARIOS_FILE, FULL_STATECHART_FILE, HANDOFFS_FILE]:
+        if not (design_dir / artifact_name).exists():
+            errors.append(f"{REVIEW_FILE}: phase {phase} statechart review requires {artifact_name}")
 
 
 def _validate_selected_artifact(
@@ -386,33 +471,56 @@ def _validate_scenarios(scenarios: Mapping[str, Any], chart: Mapping[str, Any], 
                 errors.append(f"{SCENARIOS_FILE}: deferred scenario {scenario.get('id', index)!r} missing rationale")
 
 
-def _validate_handoffs(handoffs: Mapping[str, Any], errors: List[str]) -> None:
+def _validate_handoffs(handoffs: Mapping[str, Any], chart: Mapping[str, Any], errors: List[str]) -> None:
     for field in ["actors", "systems", "dependencies", "handoffs", "accepted_risks"]:
         if field not in handoffs:
             errors.append(f"{HANDOFFS_FILE}: missing {field}")
+    transition_refs = _transition_refs(chart.get("transitions"))
+    transition_handoff_refs = _transition_handoff_refs(chart.get("transitions"))
     dependencies = handoffs.get("dependencies", [])
+    dependency_ids: Set[str] = set()
     if isinstance(dependencies, Sequence) and not isinstance(dependencies, (str, bytes)):
         for index, dependency in enumerate(dependencies):
             if not isinstance(dependency, Mapping):
                 errors.append(f"{HANDOFFS_FILE}: dependency {index} must be a mapping")
                 continue
             dependency_id = dependency.get("id", index)
+            if is_present(dependency.get("id")):
+                dependency_ids.add(str(dependency.get("id")))
             if not is_present(dependency.get("failure_path")) and not is_present(dependency.get("accepted_risk")):
                 errors.append(f"{HANDOFFS_FILE}: dependency {dependency_id!r} missing failure_path or accepted_risk")
+            failure_path = dependency.get("failure_path")
+            if is_present(failure_path) and str(failure_path) not in transition_refs:
+                errors.append(f"{HANDOFFS_FILE}: dependency {dependency_id!r} references unknown failure_path {failure_path!r}")
     entries = handoffs.get("handoffs", [])
     if not isinstance(entries, Sequence) or isinstance(entries, (str, bytes)):
         errors.append(f"{HANDOFFS_FILE}: handoffs must be a list")
         return
+    handoff_ids: Set[str] = set()
     for index, handoff in enumerate(entries):
         if not isinstance(handoff, Mapping):
             errors.append(f"{HANDOFFS_FILE}: handoff {index} must be a mapping")
             continue
         handoff_id = handoff.get("id", index)
+        if is_present(handoff.get("id")):
+            handoff_ids.add(str(handoff.get("id")))
         for field in ["owner", "input_artifact", "output_artifact"]:
             if not is_present(handoff.get(field)):
                 errors.append(f"{HANDOFFS_FILE}: handoff {handoff_id!r} missing {field}")
         if not is_present(handoff.get("failure_transition")) and not is_present(handoff.get("accepted_risk")):
             errors.append(f"{HANDOFFS_FILE}: handoff {handoff_id!r} missing failure_transition or accepted_risk")
+        dependency = handoff.get("dependency")
+        if is_present(dependency) and str(dependency) not in dependency_ids:
+            errors.append(f"{HANDOFFS_FILE}: handoff {handoff_id!r} references unknown dependency {dependency!r}")
+        failure_transition = handoff.get("failure_transition")
+        if is_present(failure_transition) and str(failure_transition) not in transition_refs:
+            errors.append(
+                f"{HANDOFFS_FILE}: handoff {handoff_id!r} references unknown failure_transition {failure_transition!r}"
+            )
+    for handoff_ref in sorted(transition_handoff_refs - handoff_ids):
+        errors.append(f"{HANDOFFS_FILE}: statechart transition references unknown handoff {handoff_ref!r}")
+    for handoff_id in sorted(handoff_ids - transition_handoff_refs):
+        errors.append(f"{HANDOFFS_FILE}: handoff {handoff_id!r} is not attached to any statechart transition")
 
 
 def _state_ids(states_value: Any) -> Set[str]:
@@ -450,6 +558,19 @@ def _transition_refs(transitions_value: Any) -> Set[str]:
         target = transition.get("to")
         if source is not None and target is not None:
             refs.add(f"{source}->{target}")
+    return refs
+
+
+def _transition_handoff_refs(transitions_value: Any) -> Set[str]:
+    refs: Set[str] = set()
+    if not isinstance(transitions_value, Sequence) or isinstance(transitions_value, (str, bytes)):
+        return refs
+    for transition in transitions_value:
+        if not isinstance(transition, Mapping):
+            continue
+        handoff_ref = transition.get("handoff_ref")
+        if is_present(handoff_ref):
+            refs.add(str(handoff_ref))
     return refs
 
 

@@ -1,0 +1,190 @@
+schema_version: 1
+artifact_version: 1
+created_at: "2026-05-11T00:00:00+00:00"
+updated_at: "2026-05-11T00:00:00+00:00"
+source_hash: 10ac6aa6b308db5c9ddb9ba4a3139d37d3d36aaded4369240b68e459dc681580
+parent_artifact_versions:
+  requirements.refined.yaml: "1"
+  statechart.happy.yaml: "1"
+  scenarios.yaml: "1"
+id: background-export-full
+title: Background Export Full Review Chart
+actors:
+  - user
+  - application
+  - export worker
+  - export job queue
+  - object storage
+  - notification service
+states:
+  - id: report_open
+    entry_condition: User is viewing a report page.
+    lane: user
+  - id: export_requested
+    entry_condition: User has requested an export.
+    lane: user
+  - id: job_queued
+    entry_condition: Application has accepted and queued the export job.
+    lane: application
+  - id: export_generating
+    entry_condition: Export worker is generating the CSV.
+    lane: export worker
+  - id: file_stored
+    entry_condition: Generated CSV is stored for download.
+    lane: object storage
+  - id: user_notified
+    entry_condition: User has been notified that the export is ready.
+    lane: notification service
+  - id: file_downloaded
+    entry_condition: User has downloaded the generated CSV.
+    lane: user
+  - id: queue_unavailable
+    entry_condition: Export request could not be queued.
+    lane: application
+  - id: export_failed
+    entry_condition: CSV generation failed after the worker began processing.
+    lane: export worker
+  - id: storage_failed
+    entry_condition: Worker could not store the generated CSV.
+    lane: object storage
+  - id: notification_failed
+    entry_condition: File is stored but export-ready notification failed.
+    lane: notification service
+initial: report_open
+transitions:
+  - id: T-001
+    from: report_open
+    to: export_requested
+    trigger: User selects export from the report page.
+    expected_result: Application records the export request.
+    actor: user
+  - id: T-002
+    from: export_requested
+    to: job_queued
+    trigger: Application submits the export job to the queue.
+    expected_result: Export job is queued for background processing.
+    actor: application
+    handoff_ref: HND-QUEUE
+  - id: T-003
+    from: job_queued
+    to: export_generating
+    trigger: Export worker picks up the queued job.
+    expected_result: CSV generation starts in the background.
+    actor: export worker
+  - id: T-004
+    from: export_generating
+    to: file_stored
+    trigger: CSV generation completes and worker stores the file.
+    expected_result: Stored file is available for download.
+    actor: export worker
+    handoff_ref: HND-STORAGE
+  - id: T-005
+    from: file_stored
+    to: user_notified
+    trigger: Application sends export-ready notification.
+    expected_result: User is notified that the export can be downloaded.
+    actor: application
+    handoff_ref: HND-NOTIFY
+  - id: T-006
+    from: user_notified
+    to: file_downloaded
+    trigger: User opens the ready export and downloads the file.
+    expected_result: CSV file is downloaded.
+    actor: user
+  - id: T-007
+    from: export_requested
+    to: queue_unavailable
+    trigger: Export job queue is unavailable.
+    expected_result: User sees the export request failed and can retry later.
+    actor: application
+    handoff_ref: HND-QUEUE
+    scenario_refs:
+      - SCN-001
+  - id: T-008
+    from: export_generating
+    to: export_failed
+    trigger: CSV generation fails.
+    expected_result: Export status is failed and user can retry generation.
+    actor: export worker
+    scenario_refs:
+      - SCN-002
+  - id: T-009
+    from: export_generating
+    to: storage_failed
+    trigger: Object storage is unavailable.
+    expected_result: Export status is failed because the file cannot be stored.
+    actor: export worker
+    handoff_ref: HND-STORAGE
+    scenario_refs:
+      - SCN-003
+  - id: T-010
+    from: file_stored
+    to: notification_failed
+    trigger: Notification delivery fails.
+    expected_result: Stored file remains available while notification failure is visible.
+    actor: application
+    handoff_ref: HND-NOTIFY
+    scenario_refs:
+      - SCN-004
+  - id: T-011
+    from: queue_unavailable
+    to: export_requested
+    trigger: User retries the export after queue availability returns.
+    expected_result: The export request can be submitted again.
+    actor: user
+  - id: T-012
+    from: export_failed
+    to: job_queued
+    trigger: User retries the failed export.
+    expected_result: A new job is queued for generation.
+    actor: user
+  - id: T-013
+    from: storage_failed
+    to: job_queued
+    trigger: User retries after storage availability returns.
+    expected_result: A new job is queued for generation and storage.
+    actor: user
+  - id: T-014
+    from: notification_failed
+    to: file_downloaded
+    trigger: User refreshes the report page and downloads the ready file.
+    expected_result: Download succeeds despite notification failure.
+    actor: user
+terminal_states:
+  - file_downloaded
+metadata:
+  source_requirements:
+    - REQ-001
+    - REQ-002
+    - REQ-003
+    - REQ-004
+    - REQ-005
+    - REQ-006
+  scenario_refs:
+    - SCN-001
+    - SCN-002
+    - SCN-003
+    - SCN-004
+  lanes:
+    - user
+    - application
+    - export worker
+    - export job queue
+    - object storage
+    - notification service
+  event_passes:
+    - id: EVT-001
+      from: application
+      to: export job queue
+      event: submit export job
+      transition_ref: T-002
+    - id: EVT-002
+      from: export worker
+      to: object storage
+      event: store generated CSV
+      transition_ref: T-004
+    - id: EVT-003
+      from: application
+      to: notification service
+      event: send export-ready notification
+      transition_ref: T-005
