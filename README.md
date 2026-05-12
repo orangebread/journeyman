@@ -55,12 +55,15 @@ Do not build package maturity governance, Codex or Claude plugin packaging, runt
 The CLI is deterministic support tooling, not the workflow owner:
 
 ```bash
+./start.sh
 journeyman init designs/password-reset
 journeyman hash examples/expected/password-reset
 journeyman validate examples/expected/password-reset
 journeyman dashboard examples/expected/password-reset
 journeyman dashboard examples/expected/password-reset --export tmp/review.html
 ```
+
+`./start.sh` creates a repo-local `.venv` when needed, installs Journeyman in editable mode, validates the proof fixtures, chooses the next available port starting at `8765`, and launches the read-only dashboard. Use `./start.sh --check` to run setup and validation without starting the server.
 
 The repo-local skill owns design interpretation and artifact authorship. The CLI must not infer requirements, choose state names, or generate design meaning in Phase 1.
 
